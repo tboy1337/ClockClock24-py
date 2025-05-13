@@ -10,10 +10,10 @@ class Needle:
         
         Args:
             canvas: The canvas to draw on
-            height: The height of the needle
+            height: The height/length of the needle
             width: The width of the needle
-            x: The x position of the needle
-            y: The y position of the needle
+            x: The x position of the needle base
+            y: The y position of the needle base
         """
         self.canvas = canvas
         self.height = height

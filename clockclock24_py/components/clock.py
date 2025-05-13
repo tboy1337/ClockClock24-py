@@ -7,7 +7,9 @@ from clockclock24_py.constants.config import (
     ANIMATION_START_TIMING,
     ANIMATION_END_TIMING,
     ANIMATION_DEFAULT_TIMING,
-    ANIMATION_TIMING_CONFIG
+    ANIMATION_TIMING_CONFIG,
+    CLOCK_BACKGROUND_COLOR,
+    NEEDLE_BACKGROUND_COLOR
 )
 
 class Clock:
@@ -33,6 +35,7 @@ class Clock:
         self.hours_needle = None
         self.minutes_needle = None
         self.clock_face = None
+        self.center_dot = None
         self.draw()
         
     def draw(self):
@@ -41,20 +44,20 @@ class Clock:
         self.clock_face = self.canvas.create_oval(
             self.x - self.size/2, self.y - self.size/2,
             self.x + self.size/2, self.y + self.size/2,
-            fill="#141414",  # Clock background color
+            fill=CLOCK_BACKGROUND_COLOR,
             outline="#1a1a1a",
             width=1
         )
         
         # Calculate needle dimensions
-        needle_width = self.size / 9
-        hours_needle_height = self.size / 2
-        minutes_needle_height = hours_needle_height - 4
+        needle_width = max(2, self.size / 25)  # Ensure needle is visible
+        hours_needle_length = self.size * 0.35  # Shorter hour hand
+        minutes_needle_length = self.size * 0.45  # Longer minute hand
         
         # Create the needles
         self.hours_needle = Needle(
             canvas=self.canvas,
-            height=hours_needle_height,
+            height=hours_needle_length,
             width=needle_width,
             x=self.x,
             y=self.y
@@ -62,10 +65,19 @@ class Clock:
         
         self.minutes_needle = Needle(
             canvas=self.canvas,
-            height=minutes_needle_height,
+            height=minutes_needle_length,
             width=needle_width,
             x=self.x,
             y=self.y
+        )
+        
+        # Draw center dot
+        dot_size = max(3, self.size / 20)
+        self.center_dot = self.canvas.create_oval(
+            self.x - dot_size/2, self.y - dot_size/2,
+            self.x + dot_size/2, self.y + dot_size/2,
+            fill=NEEDLE_BACKGROUND_COLOR,
+            outline=""
         )
         
         # Set initial rotation
@@ -85,58 +97,23 @@ class Clock:
         
     def rotate_needle(self, needle: Needle, angle: float):
         """Rotate a needle to the specified angle"""
+        # Delete the old needle
+        if needle.needle:
+            self.canvas.delete(needle.needle)
+        
         # Convert angle to radians and adjust for canvas coordinates
-        radians = math.radians(angle - 90)  # -90 to adjust for canvas coordinate system
+        # In tkinter, 0 degrees is east, and angles increase clockwise
+        # We need to adjust by -90 to make 0 degrees point north
+        radians = math.radians(angle - 90)
         
-        # Calculate the new position
-        needle_length = needle.height
-        end_x = self.x + needle_length * math.cos(radians)
-        end_y = self.y + needle_length * math.sin(radians)
+        # Calculate the needle endpoint
+        end_x = self.x + needle.height * math.cos(radians)
+        end_y = self.y + needle.height * math.sin(radians)
         
-        # Update the needle
-        self.canvas.delete(needle.needle)
-        
-        # Create a new rotated needle
-        needle.x = self.x
-        needle.y = self.y
-        
-        # Calculate the points for the rotated rectangle
-        width = needle.width
-        height = needle.height
-        
-        # Calculate the four corners of the rectangle
-        corners = [
-            (-width/2, 0),
-            (width/2, 0),
-            (width/2, height),
-            (-width/2, height)
-        ]
-        
-        # Rotate each corner
-        rotated_corners = []
-        for corner_x, corner_y in corners:
-            # Rotate the point
-            rx = corner_x * math.cos(radians) - corner_y * math.sin(radians)
-            ry = corner_x * math.sin(radians) + corner_y * math.cos(radians)
-            
-            # Translate to the center of the clock
-            rx += self.x
-            ry += self.y
-            
-            rotated_corners.append((rx, ry))
-        
-        # Create the polygon
-        needle.needle = self.canvas.create_polygon(
-            *[coord for point in rotated_corners for coord in point],
-            fill="#c9c9c9",
-            outline="",
-            width=0
-        )
-        
-        # Add a subtle shadow effect
-        shadow_corners = rotated_corners[:2]  # Just use the first two corners for the shadow line
-        self.canvas.create_line(
-            *[coord for point in shadow_corners for coord in point],
-            fill="#b0b0b0",
-            width=1
+        # Draw a simple line for the needle
+        needle.needle = self.canvas.create_line(
+            self.x, self.y, end_x, end_y,
+            fill=NEEDLE_BACKGROUND_COLOR,
+            width=needle.width,
+            capstyle=tk.ROUND
         )

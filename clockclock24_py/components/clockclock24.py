@@ -11,7 +11,9 @@ from clockclock24_py.constants.config import (
     CLOCK_MAX_SIZE,
     CLOCK_PADDING,
     GLOBAL_PADDING_CLOCK,
-    GLOBAL_PADDING_MOBILE_CLOCK
+    GLOBAL_PADDING_MOBILE_CLOCK,
+    CLOCK_BACKGROUND_COLOR,
+    BACKGROUND_COLOR
 )
 from clockclock24_py.utils.timers import get_time_timer
 from clockclock24_py.utils.utils import get_max_animation_time, start_timeout, run_sequences
@@ -32,16 +34,15 @@ class ClockClock24:
         self.is_running = False
         self.timeout = None
         self.animation_time = ANIMATION_TIME
-        self.clock_size = self.get_clock_size()
         
         # Create the main frame
-        self.frame = tk.Frame(root, bg="#141414")
+        self.frame = tk.Frame(root, bg=CLOCK_BACKGROUND_COLOR)
         self.frame.pack(fill=tk.BOTH, expand=True)
         
         # Create the canvas
         self.canvas = tk.Canvas(
             self.frame,
-            bg="#141414",
+            bg=CLOCK_BACKGROUND_COLOR,
             highlightthickness=0
         )
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -50,8 +51,8 @@ class ClockClock24:
         self.instruction_label = tk.Label(
             self.frame,
             text="Press the [space] bar to animate the clock",
-            fg="#141414",
-            bg="#e8e8e8",
+            fg="#e8e8e8",
+            bg=CLOCK_BACKGROUND_COLOR,
             font=("Helvetica", 11)
         )
         self.instruction_label.place(relx=0.5, rely=0.05, anchor=tk.CENTER)
@@ -60,11 +61,14 @@ class ClockClock24:
         self.footer_label = tk.Label(
             self.frame,
             text="Made with ❤️ by TBOY1337 • Github",
-            fg="#141414",
-            bg="#e8e8e8",
+            fg="#e8e8e8",
+            bg=CLOCK_BACKGROUND_COLOR,
             font=("Helvetica", 10)
         )
         self.footer_label.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
+        
+        # Calculate initial clock size
+        self.clock_size = self.get_clock_size()
         
         # Create the numbers
         self.numbers = []
@@ -81,32 +85,91 @@ class ClockClock24:
         
     def get_clock_size(self) -> float:
         """Calculate the appropriate clock size based on window dimensions"""
-        screen_width = self.root.winfo_screenwidth()
-        padding = GLOBAL_PADDING_CLOCK if screen_width >= 1100 else GLOBAL_PADDING_MOBILE_CLOCK
+        window_width = self.root.winfo_width() or 800  # Default to 800 if not yet configured
+        window_height = self.root.winfo_height() or 600  # Default to 600 if not yet configured
         
-        available_width = screen_width - 2 * padding - 2 * CLOCK_PADDING * NB_COLUMN_CLOCKS
-        clock_size = available_width / NB_COLUMN_CLOCKS
+        # Use the smaller dimension to ensure clocks fit
+        min_dimension = min(window_width, window_height)
         
-        return min(clock_size, CLOCK_MAX_SIZE)
+        # Calculate available width for all 4 numbers (each with 2 clocks side by side)
+        # Total width = 8 clocks in a row + spacing between hours and minutes
+        horizontal_clocks = 8  # 4 digits × 2 clocks per digit
+        horizontal_padding = GLOBAL_PADDING_CLOCK * 2  # Left and right padding
+        horizontal_spacing = CLOCK_PADDING * (horizontal_clocks - 1)  # Between clocks
+        colon_spacing = CLOCK_PADDING * 4  # Extra space for colon between hours and minutes
+        
+        available_width = window_width - horizontal_padding - horizontal_spacing - colon_spacing
+        clock_size_width = available_width / horizontal_clocks
+        
+        # Calculate available height for 3 clocks vertically
+        vertical_clocks = 3  # 3 clocks per digit vertically
+        vertical_padding = GLOBAL_PADDING_CLOCK * 2  # Top and bottom padding
+        vertical_spacing = CLOCK_PADDING * (vertical_clocks - 1)  # Between clocks
+        label_space = 80  # Space for labels
+        
+        available_height = window_height - vertical_padding - vertical_spacing - label_space
+        clock_size_height = available_height / vertical_clocks
+        
+        # Use the smaller size to ensure everything fits
+        clock_size = min(clock_size_width, clock_size_height, CLOCK_MAX_SIZE)
+        
+        return max(clock_size, 30)  # Ensure minimum size of 30 pixels
         
     def create_numbers(self):
         """Create the four numbers that display the time"""
-        # Clear existing numbers
+        # Clear existing numbers and canvas
+        self.canvas.delete("all")
         self.numbers = []
         
         # Calculate the total width and height of the display
-        number_width = 2 * (self.clock_size + CLOCK_PADDING)
-        number_height = 3 * (self.clock_size + CLOCK_PADDING)
-        total_width = 4 * number_width
-        total_height = number_height
+        clock_size = self.clock_size
+        number_width = 2 * (clock_size + CLOCK_PADDING)
+        number_height = 3 * (clock_size + CLOCK_PADDING)
         
-        # Calculate the starting position
-        start_x = (self.root.winfo_width() - total_width) / 2
-        start_y = (self.root.winfo_height() - total_height) / 2
+        # Add spacing between hour and minute pairs (colon space)
+        colon_spacing = clock_size
         
-        # Create the four numbers
+        # Calculate the starting position to center the entire display
+        canvas_width = self.root.winfo_width()
+        canvas_height = self.root.winfo_height()
+        
+        total_width = 4 * number_width + colon_spacing
+        start_x = (canvas_width - total_width) / 2
+        start_y = (canvas_height - number_height) / 2
+        
+        # Draw colon (two dots between hours and minutes)
+        colon_x = start_x + 2 * number_width + colon_spacing/2
+        dot_radius = clock_size / 8
+        dot_spacing = clock_size / 3
+        
+        # Top dot of colon
+        self.canvas.create_oval(
+            colon_x - dot_radius, 
+            start_y + number_height/2 - dot_spacing - dot_radius,
+            colon_x + dot_radius, 
+            start_y + number_height/2 - dot_spacing + dot_radius,
+            fill="#e8e8e8",
+            outline=""
+        )
+        
+        # Bottom dot of colon
+        self.canvas.create_oval(
+            colon_x - dot_radius, 
+            start_y + number_height/2 + dot_spacing - dot_radius,
+            colon_x + dot_radius, 
+            start_y + number_height/2 + dot_spacing + dot_radius,
+            fill="#e8e8e8",
+            outline=""
+        )
+        
+        # Create the four numbers (HH:MM)
         for i in range(4):
-            x = start_x + i * number_width
+            # Add extra spacing between hours and minutes (between digits 1 and 2)
+            x_offset = 0
+            if i >= 2:
+                x_offset = colon_spacing
+                
+            x = start_x + i * number_width + x_offset
             y = start_y
             
             number = Number(
@@ -114,7 +177,7 @@ class ClockClock24:
                 x=x,
                 y=y,
                 number_data=self.timer[i],
-                clock_size=self.clock_size
+                clock_size=clock_size
             )
             
             self.numbers.append(number)
@@ -122,16 +185,22 @@ class ClockClock24:
     def update_numbers(self):
         """Update the numbers with the current timer data"""
         for i, number in enumerate(self.numbers):
-            number.update(self.timer[i])
+            if i < len(self.timer):
+                number.update(self.timer[i])
             
     def on_resize(self, event):
         """Handle window resize event"""
-        # Recalculate clock size
-        self.clock_size = self.get_clock_size()
-        
-        # Redraw the numbers
-        self.canvas.delete("all")
-        self.create_numbers()
+        # Only respond to window size changes, not other configure events
+        if event.widget == self.root and (event.width != getattr(self, '_last_width', 0) or 
+                                         event.height != getattr(self, '_last_height', 0)):
+            self._last_width = event.width
+            self._last_height = event.height
+            
+            # Recalculate clock size
+            self.clock_size = self.get_clock_size()
+            
+            # Redraw the numbers
+            self.create_numbers()
         
     def get_remaining_time(self) -> int:
         """Get the remaining time before the next minute change"""
